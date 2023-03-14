@@ -1,10 +1,10 @@
 apiVersion: compute.functionmesh.io/v1alpha1
 kind: Function
 metadata:
-  name: node-function-download-generic-sample
+  name: node-function-download-generic-sample222
   namespace: default
 spec:
-  image: jiangpch/generic-runtime-node:v0.26.0
+  image: jiangpch/generic-runtime-node:v0.31.0
   className: process
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
@@ -13,18 +13,18 @@ spec:
   #logTopic: persistent://public/default/node-generic-function-logs2
   input:
     topics:
-    - persistent://public/default/input-download-generic-node-topic
+    - persistent://public/default/input2-download-generic-node-topic
     typeClassName: string
   output:
-    topic: persistent://public/default/output-download-generic-node-topic
+    topic: persistent://public/default/output2-download-generic-node-topic
     typeClassName: string
   resources:
     requests:
-      cpu: 500m
-      memory: 0.5G
+      cpu: 1000m
+      memory: 2G
     limits:
-      cpu: 500m
-      memory: 0.5G
+      cpu: 1000m
+      memory: 2G
   pulsar:
     pulsarConfig: "test-node-pulsar"
     tlsConfig:
