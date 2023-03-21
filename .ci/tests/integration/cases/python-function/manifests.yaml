@@ -1,5 +1,5 @@
 apiVersion: compute.functionmesh.io/v1alpha1
-kind: Function
+kind: function
 metadata:
   name: py-function-sample
   namespace: default

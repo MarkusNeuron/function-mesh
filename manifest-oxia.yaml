@@ -1,27 +1,23 @@
 apiVersion: compute.functionmesh.io/v1alpha1
 kind: Function
 metadata:
-  name: py-function-download-generic-sample
+  name: function-oxia-sample
   namespace: default
 spec:
-  pod:
-    env:
-    - name: "UNIT_PARALLELISM"
-      value: "2"
-  image: jiangpch/generic-runtime-python:v0.27.0
-  className: exclamation_function.ExclamationFunction
+  className: org.apache.pulsar.functions.api.examples.WordCountFunction
+  image: jiangpch/pulsar-functions-java-runner-with-oxia:3.0.0.2
+  statefulConfig:
+    pulsar:
+      serviceUrl: oxia:6648
+      javaProvider:
+        className: io.streamnative.pulsar.state.OXIAStateStoreProviderImpl
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
   replicas: 1
-  #maxReplicas: 1
-  #logTopic: persistent://public/default/py-generic-function-logs
   input:
     topics:
-    - persistent://public/default/input-download-generic-python-topic
-    typeClassName: string
-  output:
-    topic: persistent://public/default/output-download-generic-python-topic
-    typeClassName: string
+    - persistent://public/default/input-oxia-java-topic
+    typeClassName: java.lang.String
   resources:
     requests:
       cpu: 500m
@@ -29,25 +25,27 @@ spec:
     limits:
       cpu: 500m
       memory: 0.5G
+  # each secret will be loaded ad an env variable from the `path` secret with the `key` in that secret in the name of `name`
   pulsar:
-    pulsarConfig: "test-py-pulsar"
+    pulsarConfig: "test-oxia-pulsar"
     tlsConfig:
       enabled: false
-      allowInsecure: true
+      allowInsecure: false
       hostnameVerification: true
+      certSecretName: sn-platform-tls-broker
+      certSecretKey: ""
     #authConfig: "test-auth"
-  python:
-    py: exclamation_function.py
-    pyLocation: function://public/default/test-py-function
+  java:
+    jar: pulsar-functions-api-examples.jar
+    jarLocation: function://public/default/test-java-function
   # to be delete & use admission hook
   clusterName: test
   autoAck: true
-  useGenericRuntime: true
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: test-py-pulsar
+  name: test-oxia-pulsar
 data:
   webServiceURL: http://sn-platform-pulsar-broker.default.svc.cluster.local:8080
   brokerServiceURL: pulsar://sn-platform-pulsar-broker.default.svc.cluster.local:6650
@@ -63,12 +61,3 @@ data:
 #  useTls: "true"
 #  tlsAllowInsecureConnection: "false"
 #  tlsHostnameVerificationEnable: "true"
----
-apiVersion: v1
-data:
-  username: YWRtaW4=
-  password: MWYyZDFlMmU2N2Rm
-kind: Secret
-metadata:
-  name: test-py-secret
-type: Opaque
