@@ -433,10 +433,12 @@ func MakeLivenessProbe(liveness *v1alpha1.Liveness) *corev1.Probe {
 }
 
 func makeCleanUpJob(objectMeta *metav1.ObjectMeta, container *corev1.Container, volumes []corev1.Volume, labels map[string]string, policy v1alpha1.PodPolicy) *v1.Job {
+	temp := makePodTemplate(container, volumes, labels, policy, nil)
+	temp.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	return &v1.Job{
 		ObjectMeta: *objectMeta,
 		Spec: v1.JobSpec{
-			Template: *makePodTemplate(container, volumes, labels, policy, nil),
+			Template: *temp,
 		},
 	}
 }
