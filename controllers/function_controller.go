@@ -120,6 +120,10 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	err = r.ApplyFunctionCleanUpJob(ctx, function)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	function.Status.ObservedGeneration = function.Generation
 	err = r.Status().Update(ctx, function)

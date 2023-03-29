@@ -18,9 +18,11 @@
 package spec
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/encoding/protojson"
 	appsv1 "k8s.io/api/apps/v1"
 	autov2beta2 "k8s.io/api/autoscaling/v2beta2"
+	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -51,7 +53,7 @@ func MakeSourceService(source *v1alpha1.Source) *corev1.Service {
 
 func MakeSourceStatefulSet(source *v1alpha1.Source) *appsv1.StatefulSet {
 	objectMeta := MakeSourceObjectMeta(source)
-	return MakeStatefulSet(objectMeta, source.Spec.Replicas, source.Spec.DownloaderImage, MakeSourceContainer(source),
+	return MakeStatefulSet(objectMeta, source.Spec.Replicas, source.Spec.DownloaderImage, makeSourceContainer(source),
 		makeSourceVolumes(source), makeSourceLabels(source), source.Spec.Pod, *source.Spec.Pulsar,
 		source.Spec.Java, source.Spec.Python, source.Spec.Golang, source.Spec.VolumeMounts, nil)
 }
@@ -67,7 +69,7 @@ func MakeSourceObjectMeta(source *v1alpha1.Source) *metav1.ObjectMeta {
 	}
 }
 
-func MakeSourceContainer(source *v1alpha1.Source) *corev1.Container {
+func makeSourceContainer(source *v1alpha1.Source) *corev1.Container {
 	imagePullPolicy := source.Spec.ImagePullPolicy
 	if imagePullPolicy == "" {
 		imagePullPolicy = corev1.PullIfNotPresent
@@ -157,4 +159,35 @@ func generateSourceDetailsInJSON(source *v1alpha1.Source) string {
 	}
 	log.Info(string(json))
 	return string(json)
+}
+
+func MakeSourceCleanUpJob(source *v1alpha1.Source) *v1.Job {
+	objectMeta := &metav1.ObjectMeta{
+		Name:      makeJobName(source.Name, v1alpha1.SinkComponent),
+		Namespace: source.Namespace,
+		Labels:    makeSourceLabels(source),
+	}
+	container := makeSourceContainer(source)
+	container.LivenessProbe = nil
+
+	command := getCleanUpCommand(source.Spec.Pulsar.AuthSecret != "",
+		source.Spec.Pulsar.TLSSecret != "",
+		source.Spec.Pulsar.TLSConfig,
+		source.Spec.Pulsar.AuthConfig,
+		[]string{computeBatchSourceIntermediateTopicName(source)},
+		"",
+		computeBatchSourceInstanceSubscriptionName(source),
+		source.Spec.Tenant,
+		source.Spec.Namespace,
+		source.Spec.Name)
+	container.Command = command
+	return makeCleanUpJob(objectMeta, container, makeSourceVolumes(source), makeSourceLabels(source), source.Spec.Pod)
+}
+
+func computeBatchSourceInstanceSubscriptionName(source *v1alpha1.Source) string {
+	return fmt.Sprintf("BatchSourceExecutor-%s-%s-%s", source.Spec.Tenant, source.Spec.Namespace, source.Spec.Name)
+}
+
+func computeBatchSourceIntermediateTopicName(source *v1alpha1.Source) string {
+	return fmt.Sprintf("persistent://%s-%s-%s-intermediate", source.Spec.Tenant, source.Spec.Namespace, source.Spec.Name)
 }

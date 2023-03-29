@@ -258,6 +258,48 @@ func (r *SinkReconciler) ApplySinkVPA(ctx context.Context, sink *v1alpha1.Sink) 
 	return nil
 }
 
+func (r *SinkReconciler) ApplySinkCleanUpJob(ctx context.Context, sink *v1alpha1.Sink) error {
+	if sink.Spec.CleanupSubscription {
+		// add finalizer if sink is updated to clean up subscription
+		if sink.ObjectMeta.DeletionTimestamp.IsZero() {
+			if !containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				sink.ObjectMeta.Finalizers = append(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, sink); err != nil {
+					return err
+				}
+			}
+		} else {
+			// if sink is deleting, create a job to clean up subscription
+			if containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				desiredJob := spec.MakeSinkCleanUpJob(sink)
+				// recreate clean up job
+				r.Delete(ctx, desiredJob)
+				if _, err := ctrl.CreateOrUpdate(ctx, r.Client, desiredJob, func() error {
+					return nil
+				}); err != nil {
+					r.Log.Error(err, "error create or update clean up job for sink",
+						"namespace", sink.Namespace, "name", sink.Name,
+						"job name", desiredJob.Name)
+					return err
+				}
+				sink.ObjectMeta.Finalizers = removeString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, sink); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		// remove finalizer if sink is updated to not cleanup subscription
+		if containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+			sink.ObjectMeta.Finalizers = removeString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
+			if err := r.Update(ctx, sink); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (r *SinkReconciler) checkIfStatefulSetNeedUpdate(statefulSet *appsv1.StatefulSet, sink *v1alpha1.Sink) bool {
 	return !spec.CheckIfStatefulSetSpecIsEqual(&statefulSet.Spec, &spec.MakeSinkStatefulSet(sink).Spec)
 }

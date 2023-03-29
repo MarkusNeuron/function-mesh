@@ -118,6 +118,10 @@ func (r *SinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	err = r.ApplySinkCleanUpJob(ctx, sink)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	sink.Status.ObservedGeneration = sink.Generation
 	err = r.Status().Update(ctx, sink)

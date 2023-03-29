@@ -118,6 +118,10 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	err = r.ApplySourceCleanUpJob(ctx, source)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	source.Status.ObservedGeneration = source.Generation
 	err = r.Status().Update(ctx, source)

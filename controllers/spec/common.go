@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	v1 "k8s.io/api/batch/v1"
 	"reflect"
 	"sort"
 	"strconv"
@@ -318,7 +319,7 @@ func MakeStatefulSetSpec(replicas *int32, container *corev1.Container,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: labels,
 		},
-		Template:            *MakePodTemplate(container, volumes, labels, policy, downloaderContainer),
+		Template:            *makePodTemplate(container, volumes, labels, policy, downloaderContainer),
 		PodManagementPolicy: appsv1.ParallelPodManagement,
 		UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 			Type: appsv1.RollingUpdateStatefulSetStrategyType,
@@ -331,7 +332,7 @@ func MakeStatefulSetSpec(replicas *int32, container *corev1.Container,
 	return spec
 }
 
-func MakePodTemplate(container *corev1.Container, volumes []corev1.Volume,
+func makePodTemplate(container *corev1.Container, volumes []corev1.Volume,
 	labels map[string]string, policy v1alpha1.PodPolicy,
 	downloaderContainer *corev1.Container) *corev1.PodTemplateSpec {
 	podSecurityContext := getDefaultRunnerPodSecurityContext(DefaultRunnerUserID, DefaultRunnerGroupID, getEnvOrDefault("RUN_AS_NON_ROOT", "false"))
@@ -431,13 +432,22 @@ func MakeLivenessProbe(liveness *v1alpha1.Liveness) *corev1.Probe {
 	}
 }
 
-func getLegacyDownloadCommand(downloadPath, componentPackage string, authProvided, tlsProvided bool,
-	tlsConfig TLSConfig, authConfig *v1alpha1.AuthConfig) []string {
+func makeCleanUpJob(objectMeta *metav1.ObjectMeta, container *corev1.Container, volumes []corev1.Volume, labels map[string]string, policy v1alpha1.PodPolicy) *v1.Job {
+	return &v1.Job{
+		ObjectMeta: *objectMeta,
+		Spec: v1.JobSpec{
+			Template: *makePodTemplate(container, volumes, labels, policy, nil),
+		},
+	}
+}
+
+func getPulsarAdminCommand(authProvided, tlsProvided bool, tlsConfig TLSConfig, authConfig *v1alpha1.AuthConfig) []string {
 	args := []string{
 		PulsarAdminExecutableFile,
 		"--admin-url",
 		"$webServiceURL",
 	}
+
 	if authConfig != nil && authConfig.OAuth2Config != nil {
 		args = append(args, []string{
 			"--auth-plugin",
@@ -481,6 +491,38 @@ func getLegacyDownloadCommand(downloadPath, componentPackage string, authProvide
 			}
 		}
 	}
+
+	return args
+}
+
+func getCleanUpCommand(authProvided, tlsProvided bool, tlsConfig TLSConfig, authConfig *v1alpha1.AuthConfig, inputTopics []string, topicPattern, subscriptionName, tenant, namespace, name string) []string {
+	args := getPulsarAdminCommand(authProvided, tlsProvided, tlsConfig, authConfig)
+
+	if topicPattern != "" || len(inputTopics) > 1 {
+		args = append(args, []string{
+			"namespaces",
+			"unsubscribe",
+			"-s",
+			getSubscriptionNameOrDefault(subscriptionName, tenant, namespace, name),
+			tenant + "/" + namespace,
+		}...)
+	} else if len(inputTopics) == 1 {
+		args = append(args, []string{
+			"topics",
+			"unsubscribe",
+			"-s",
+			getSubscriptionNameOrDefault(subscriptionName, tenant, namespace, name),
+			inputTopics[0],
+		}...)
+	}
+
+	return args
+}
+
+func getLegacyDownloadCommand(downloadPath, componentPackage string, authProvided, tlsProvided bool,
+	tlsConfig TLSConfig, authConfig *v1alpha1.AuthConfig) []string {
+	args := getPulsarAdminCommand(authProvided, tlsProvided, tlsConfig, authConfig)
+
 	if hasPackageNamePrefix(downloadPath) {
 		args = append(args, []string{
 			"packages",
@@ -1740,4 +1782,11 @@ func getFilenameOfComponentPackage(componentPackage string) string {
 		return data[len(data)-1]
 	}
 	return componentPackage
+}
+
+func getSubscriptionNameOrDefault(subscription, tenant, namespace, name string) string {
+	if subscription == "" {
+		return fmt.Sprintf("%s-%s-%s", tenant, namespace, name)
+	}
+	return subscription
 }

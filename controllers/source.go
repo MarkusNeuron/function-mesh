@@ -258,6 +258,48 @@ func (r *SourceReconciler) ApplySourceVPA(ctx context.Context, source *v1alpha1.
 	return nil
 }
 
+func (r *SourceReconciler) ApplySourceCleanUpJob(ctx context.Context, source *v1alpha1.Source) error {
+	if source.Spec.BatchSourceConfig != nil {
+		// add finalizer if source is updated to clean up subscription
+		if source.ObjectMeta.DeletionTimestamp.IsZero() {
+			if !containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				source.ObjectMeta.Finalizers = append(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, source); err != nil {
+					return err
+				}
+			}
+		} else {
+			// if source is deleting, create a job to clean up subscription
+			if containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				desiredJob := spec.MakeSourceCleanUpJob(source)
+				// recreate clean up job
+				r.Delete(ctx, desiredJob)
+				if _, err := ctrl.CreateOrUpdate(ctx, r.Client, desiredJob, func() error {
+					return nil
+				}); err != nil {
+					r.Log.Error(err, "error create or update clean up job for source",
+						"namespace", source.Namespace, "name", source.Name,
+						"job name", desiredJob.Name)
+					return err
+				}
+				source.ObjectMeta.Finalizers = removeString(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, source); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		// remove finalizer if source is updated to not cleanup subscription
+		if containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+			source.ObjectMeta.Finalizers = removeString(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
+			if err := r.Update(ctx, source); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (r *SourceReconciler) checkIfStatefulSetNeedUpdate(statefulSet *appsv1.StatefulSet, source *v1alpha1.Source) bool {
 	return !spec.CheckIfStatefulSetSpecIsEqual(&statefulSet.Spec, &spec.MakeSourceStatefulSet(source).Spec)
 }

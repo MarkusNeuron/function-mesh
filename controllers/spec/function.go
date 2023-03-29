@@ -21,6 +21,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	appsv1 "k8s.io/api/apps/v1"
 	autov2beta2 "k8s.io/api/autoscaling/v2beta2"
+	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -56,7 +57,7 @@ func MakeFunctionService(function *v1alpha1.Function) *corev1.Service {
 func MakeFunctionStatefulSet(function *v1alpha1.Function) *appsv1.StatefulSet {
 	objectMeta := MakeFunctionObjectMeta(function)
 	return MakeStatefulSet(objectMeta, function.Spec.Replicas, function.Spec.DownloaderImage,
-		MakeFunctionContainer(function), makeFunctionVolumes(function), makeFunctionLabels(function), function.Spec.Pod,
+		makeFunctionContainer(function), makeFunctionVolumes(function), makeFunctionLabels(function), function.Spec.Pod,
 		*function.Spec.Pulsar, function.Spec.Java, function.Spec.Python, function.Spec.Golang,
 		function.Spec.VolumeMounts, function.Spec.VolumeClaimTemplates)
 }
@@ -70,6 +71,28 @@ func MakeFunctionObjectMeta(function *v1alpha1.Function) *metav1.ObjectMeta {
 			*metav1.NewControllerRef(function, function.GroupVersionKind()),
 		},
 	}
+}
+
+func MakeFunctionCleanUpJob(function *v1alpha1.Function) *v1.Job {
+	objectMeta := &metav1.ObjectMeta{
+		Name:      makeJobName(function.Name, v1alpha1.FunctionComponent),
+		Namespace: function.Namespace,
+		Labels:    makeFunctionLabels(function),
+	}
+	container := makeFunctionContainer(function)
+	container.LivenessProbe = nil
+	command := getCleanUpCommand(function.Spec.Pulsar.AuthSecret != "",
+		function.Spec.Pulsar.TLSSecret != "",
+		function.Spec.Pulsar.TLSConfig,
+		function.Spec.Pulsar.AuthConfig,
+		function.Spec.Input.Topics,
+		function.Spec.Input.TopicPattern,
+		function.Spec.SubscriptionName,
+		function.Spec.Tenant,
+		function.Spec.Namespace,
+		function.Spec.Name)
+	container.Command = command
+	return makeCleanUpJob(objectMeta, container, makeFunctionVolumes(function), makeFunctionLabels(function), function.Spec.Pod)
 }
 
 func makeFunctionVolumes(function *v1alpha1.Function) []corev1.Volume {
@@ -93,7 +116,7 @@ func makeFunctionVolumeMounts(function *v1alpha1.Function) []corev1.VolumeMount 
 		function.Spec.Golang)
 }
 
-func MakeFunctionContainer(function *v1alpha1.Function) *corev1.Container {
+func makeFunctionContainer(function *v1alpha1.Function) *corev1.Container {
 	imagePullPolicy := function.Spec.ImagePullPolicy
 	if imagePullPolicy == "" {
 		imagePullPolicy = corev1.PullIfNotPresent
