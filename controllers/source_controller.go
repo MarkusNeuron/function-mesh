@@ -127,6 +127,10 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return reconcile.Result{}, err
 	}
 
+	// don't need to update status since sink is deleting
+	if !source.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
 	source.Status.ObservedGeneration = source.Generation
 	err = r.Status().Update(ctx, source)
 	if err != nil {

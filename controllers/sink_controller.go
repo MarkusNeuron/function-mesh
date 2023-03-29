@@ -126,6 +126,10 @@ func (r *SinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return reconcile.Result{}, err
 	}
 
+	// don't need to update status since sink is deleting
+	if !sink.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
 	sink.Status.ObservedGeneration = sink.Generation
 	err = r.Status().Update(ctx, sink)
 	if err != nil {

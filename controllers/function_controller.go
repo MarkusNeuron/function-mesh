@@ -129,6 +129,10 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return reconcile.Result{}, err
 	}
 
+	// don't need to update status since function is deleting
+	if !function.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
 	function.Status.ObservedGeneration = function.Generation
 	err = r.Status().Update(ctx, function)
 	if err != nil {
