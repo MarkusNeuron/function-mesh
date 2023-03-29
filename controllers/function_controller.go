@@ -19,6 +19,7 @@ package controllers
 
 import (
 	"context"
+	v1 "k8s.io/api/batch/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/streamnative/function-mesh/api/compute/v1alpha1"
@@ -145,7 +146,8 @@ func (r *FunctionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.StatefulSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&autov2beta2.HorizontalPodAutoscaler{}).
-		Owns(&corev1.Secret{})
+		Owns(&corev1.Secret{}).
+		Owns(&v1.Job{})
 
 	if r.WatchFlags != nil && r.WatchFlags.WatchVPACRDs {
 		manager.Owns(&vpav1.VerticalPodAutoscaler{})

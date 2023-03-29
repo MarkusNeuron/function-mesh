@@ -518,7 +518,7 @@ func getCleanUpCommand(authProvided, tlsProvided bool, tlsConfig TLSConfig, auth
 		}...)
 	}
 
-	return args
+	return []string{"sh", "-c", strings.Join(args, " ")}
 }
 
 func getLegacyDownloadCommand(downloadPath, componentPackage string, authProvided, tlsProvided bool,
@@ -1788,7 +1788,7 @@ func getFilenameOfComponentPackage(componentPackage string) string {
 
 func getSubscriptionNameOrDefault(subscription, tenant, namespace, name string) string {
 	if subscription == "" {
-		return fmt.Sprintf("%s-%s-%s", tenant, namespace, name)
+		return fmt.Sprintf("%s/%s/%s", tenant, namespace, name)
 	}
 	return subscription
 }
