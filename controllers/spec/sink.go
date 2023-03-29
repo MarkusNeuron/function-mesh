@@ -120,7 +120,7 @@ func makeSinkLabels(sink *v1alpha1.Sink) map[string]string {
 
 func MakeSinkCleanUpJob(sink *v1alpha1.Sink) *v1.Job {
 	objectMeta := &metav1.ObjectMeta{
-		Name:      makeJobName(sink.Name, v1alpha1.SinkComponent),
+		Name:      makeJobName(sink.Name+"-cleanup", v1alpha1.SinkComponent),
 		Namespace: sink.Namespace,
 		Labels:    makeSinkLabels(sink),
 	}

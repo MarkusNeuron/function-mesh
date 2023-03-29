@@ -59,6 +59,7 @@ type FunctionReconciler struct {
 
 func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("function", req.NamespacedName)
+	r.Log.Info("=========into reconcile")
 
 	// your logic here
 	function := &v1alpha1.Function{}
@@ -101,7 +102,7 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	err = r.Status().Update(ctx, function)
 	if err != nil {
-		r.Log.Error(err, "failed to update function status")
+		r.Log.Error(err, "failed to update function status after observing resources")
 		return ctrl.Result{}, err
 	}
 
@@ -131,7 +132,7 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	function.Status.ObservedGeneration = function.Generation
 	err = r.Status().Update(ctx, function)
 	if err != nil {
-		r.Log.Error(err, "failed to update function status")
+		r.Log.Error(err, "failed to update function status after applying resources")
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil

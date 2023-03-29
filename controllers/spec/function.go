@@ -75,7 +75,7 @@ func MakeFunctionObjectMeta(function *v1alpha1.Function) *metav1.ObjectMeta {
 
 func MakeFunctionCleanUpJob(function *v1alpha1.Function) *v1.Job {
 	objectMeta := &metav1.ObjectMeta{
-		Name:      makeJobName(function.Name, v1alpha1.FunctionComponent),
+		Name:      makeJobName(function.Name+"-cleanup", v1alpha1.FunctionComponent),
 		Namespace: function.Namespace,
 		Labels:    makeFunctionLabels(function),
 	}

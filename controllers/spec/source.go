@@ -163,7 +163,7 @@ func generateSourceDetailsInJSON(source *v1alpha1.Source) string {
 
 func MakeSourceCleanUpJob(source *v1alpha1.Source) *v1.Job {
 	objectMeta := &metav1.ObjectMeta{
-		Name:      makeJobName(source.Name, v1alpha1.SinkComponent),
+		Name:      makeJobName(source.Name+"cleanup", v1alpha1.SinkComponent),
 		Namespace: source.Namespace,
 		Labels:    makeSourceLabels(source),
 	}
