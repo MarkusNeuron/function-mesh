@@ -19,10 +19,12 @@ package spec
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	v1 "k8s.io/api/batch/v1"
+	"k8s.io/client-go/rest"
 	"reflect"
 	"sort"
 	"strconv"
@@ -58,6 +60,8 @@ const (
 	DownloaderVolume        = "downloader-volume"
 	DownloaderImage         = DefaultRunnerPrefix + "pulsarctl:2.10.2.3"
 	DownloadDir             = "/pulsar/download"
+
+	CleanupContainerName = "cleanup"
 
 	WindowFunctionConfigKeyName = "__WINDOWCONFIGS__"
 	WindowFunctionExecutorClass = "org.apache.pulsar.functions.windowing.WindowFunctionExecutor"
@@ -445,6 +449,22 @@ func makeCleanUpJob(objectMeta *metav1.ObjectMeta, container *corev1.Container, 
 	}
 }
 
+func TriggerCleanup(ctx context.Context, restClient rest.Interface, namespace, name, container string) error {
+	command := []string{"sh", "-c", "kill", "-s", "SIGINT", "1"}
+	res := restClient.Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(name).
+		SubResource("exec").
+		Param("command", strings.Join(command, " ")).
+		VersionedParams(&corev1.PodExecOptions{
+			Command:   command,
+			Container: container,
+		}, metav1.ParameterCodec).
+		Do(ctx)
+	return res.Error()
+}
+
 func getPulsarAdminCommand(authProvided, tlsProvided bool, tlsConfig TLSConfig, authConfig *v1alpha1.AuthConfig) []string {
 	args := []string{
 		PulsarAdminExecutableFile,
@@ -520,7 +540,7 @@ func getCleanUpCommand(authProvided, tlsProvided bool, tlsConfig TLSConfig, auth
 		}...)
 	}
 
-	return []string{"sh", "-c", strings.Join(args, " ")}
+	return []string{"sh", "-c", "sleep infinity & pid=$!;", "trap \"kill $pid\" INT;", "trap 'exit 0' TERM;", "wait;", strings.Join(args, " ")}
 }
 
 func getLegacyDownloadCommand(downloadPath, componentPackage string, authProvided, tlsProvided bool,

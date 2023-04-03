@@ -20,6 +20,7 @@ package controllers
 import (
 	"context"
 	v1 "k8s.io/api/batch/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/go-logr/logr"
 	"github.com/streamnative/function-mesh/api/compute/v1alpha1"
@@ -41,6 +42,7 @@ import (
 // FunctionReconciler reconciles a Function object
 type FunctionReconciler struct {
 	client.Client
+	RestClient rest.Interface
 	Log        logr.Logger
 	Scheme     *runtime.Scheme
 	WatchFlags *utils.WatchFlags

@@ -19,7 +19,6 @@ package controllers
 
 import (
 	"context"
-
 	autoscaling "k8s.io/api/autoscaling/v1"
 
 	"github.com/streamnative/function-mesh/api/compute/v1alpha1"
@@ -263,17 +262,7 @@ func (r *SinkReconciler) ApplySinkCleanUpJob(ctx context.Context, sink *v1alpha1
 		// add finalizer if sink is updated to clean up subscription
 		if sink.ObjectMeta.DeletionTimestamp.IsZero() {
 			if !containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
-				sink.ObjectMeta.Finalizers = append(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
-				if err := r.Update(ctx, sink); err != nil {
-					return err
-				}
-			}
-		} else {
-			// if sink is deleting, create a job to clean up subscription
-			if containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
 				desiredJob := spec.MakeSinkCleanUpJob(sink)
-				// recreate clean up job
-				r.Delete(ctx, desiredJob)
 				if _, err := ctrl.CreateOrUpdate(ctx, r.Client, desiredJob, func() error {
 					return nil
 				}); err != nil {
@@ -282,8 +271,28 @@ func (r *SinkReconciler) ApplySinkCleanUpJob(ctx context.Context, sink *v1alpha1
 						"job name", desiredJob.Name)
 					return err
 				}
+				sink.ObjectMeta.Finalizers = append(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, sink); err != nil {
+					return err
+				}
+			}
+		} else {
+			desiredJob := spec.MakeSinkCleanUpJob(sink)
+			// if sink is deleting, send an "INT" signal to the cleanup job to clean up subscription
+			if containsString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				if err := spec.TriggerCleanup(ctx, r.RestClient, desiredJob.Namespace, desiredJob.Spec.Template.Name, spec.CleanupContainerName); err != nil {
+					r.Log.Error(err, "error send signal to clean up job for sink",
+						"namespace", sink.Namespace, "name", sink.Name,
+						"job name", desiredJob.Name)
+					return err
+				}
 				sink.ObjectMeta.Finalizers = removeString(sink.ObjectMeta.Finalizers, CleanUpFinalizerName)
 				if err := r.Update(ctx, sink); err != nil {
+					return err
+				}
+			} else {
+				// delete the cleanup job
+				if err := r.Delete(ctx, desiredJob); err != nil {
 					return err
 				}
 			}
@@ -295,6 +304,13 @@ func (r *SinkReconciler) ApplySinkCleanUpJob(ctx context.Context, sink *v1alpha1
 			if err := r.Update(ctx, sink); err != nil {
 				return err
 			}
+
+			desiredJob := spec.MakeSinkCleanUpJob(sink)
+			// delete the cleanup job
+			if err := r.Delete(ctx, desiredJob); err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil

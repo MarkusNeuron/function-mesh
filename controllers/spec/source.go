@@ -169,6 +169,13 @@ func MakeSourceCleanUpJob(source *v1alpha1.Source) *v1.Job {
 	}
 	container := makeSourceContainer(source)
 	container.LivenessProbe = nil
+	if source.Spec.CleanupImage != "" {
+		container.Image = source.Spec.CleanupImage
+	}
+	authConfig := source.Spec.Pulsar.CleanupAuthConfig
+	if authConfig == nil {
+		authConfig = source.Spec.Pulsar.AuthConfig
+	}
 
 	command := getCleanUpCommand(source.Spec.Pulsar.AuthSecret != "",
 		source.Spec.Pulsar.TLSSecret != "",

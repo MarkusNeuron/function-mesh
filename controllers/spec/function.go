@@ -80,11 +80,19 @@ func MakeFunctionCleanUpJob(function *v1alpha1.Function) *v1.Job {
 		Labels:    makeFunctionLabels(function),
 	}
 	container := makeFunctionContainer(function)
+	container.Name = CleanupContainerName
 	container.LivenessProbe = nil
+	if function.Spec.CleanupImage != "" {
+		container.Image = function.Spec.CleanupImage
+	}
+	authConfig := function.Spec.Pulsar.CleanupAuthConfig
+	if authConfig == nil {
+		authConfig = function.Spec.Pulsar.AuthConfig
+	}
 	command := getCleanUpCommand(function.Spec.Pulsar.AuthSecret != "",
 		function.Spec.Pulsar.TLSSecret != "",
 		function.Spec.Pulsar.TLSConfig,
-		function.Spec.Pulsar.AuthConfig,
+		authConfig,
 		function.Spec.Input.Topics,
 		function.Spec.Input.TopicPattern,
 		function.Spec.SubscriptionName,

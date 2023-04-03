@@ -125,11 +125,19 @@ func MakeSinkCleanUpJob(sink *v1alpha1.Sink) *v1.Job {
 		Labels:    makeSinkLabels(sink),
 	}
 	container := makeSinkContainer(sink)
+	container.Name = CleanupContainerName
 	container.LivenessProbe = nil
+	if sink.Spec.CleanupImage != "" {
+		container.Image = sink.Spec.CleanupImage
+	}
+	authConfig := sink.Spec.Pulsar.CleanupAuthConfig
+	if authConfig == nil {
+		authConfig = sink.Spec.Pulsar.AuthConfig
+	}
 	command := getCleanUpCommand(sink.Spec.Pulsar.AuthSecret != "",
 		sink.Spec.Pulsar.TLSSecret != "",
 		sink.Spec.Pulsar.TLSConfig,
-		sink.Spec.Pulsar.AuthConfig,
+		authConfig,
 		sink.Spec.Input.Topics,
 		sink.Spec.Input.TopicPattern,
 		sink.Spec.SubscriptionName,

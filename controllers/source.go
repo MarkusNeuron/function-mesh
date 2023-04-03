@@ -263,17 +263,7 @@ func (r *SourceReconciler) ApplySourceCleanUpJob(ctx context.Context, source *v1
 		// add finalizer if source is updated to clean up subscription
 		if source.ObjectMeta.DeletionTimestamp.IsZero() {
 			if !containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
-				source.ObjectMeta.Finalizers = append(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
-				if err := r.Update(ctx, source); err != nil {
-					return err
-				}
-			}
-		} else {
-			// if source is deleting, create a job to clean up subscription
-			if containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
 				desiredJob := spec.MakeSourceCleanUpJob(source)
-				// recreate clean up job
-				r.Delete(ctx, desiredJob)
 				if _, err := ctrl.CreateOrUpdate(ctx, r.Client, desiredJob, func() error {
 					return nil
 				}); err != nil {
@@ -282,8 +272,28 @@ func (r *SourceReconciler) ApplySourceCleanUpJob(ctx context.Context, source *v1
 						"job name", desiredJob.Name)
 					return err
 				}
+				source.ObjectMeta.Finalizers = append(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
+				if err := r.Update(ctx, source); err != nil {
+					return err
+				}
+			}
+		} else {
+			desiredJob := spec.MakeSourceCleanUpJob(source)
+			// if source is deleting, create a job to clean up subscription
+			if containsString(source.ObjectMeta.Finalizers, CleanUpFinalizerName) {
+				if err := spec.TriggerCleanup(ctx, r.RestClient, desiredJob.Namespace, desiredJob.Spec.Template.Name, spec.CleanupContainerName); err != nil {
+					r.Log.Error(err, "error send signal to clean up job for source",
+						"namespace", source.Namespace, "name", source.Name,
+						"job name", desiredJob.Name)
+					return err
+				}
 				source.ObjectMeta.Finalizers = removeString(source.ObjectMeta.Finalizers, CleanUpFinalizerName)
 				if err := r.Update(ctx, source); err != nil {
+					return err
+				}
+			} else {
+				// delete the cleanup job
+				if err := r.Delete(ctx, desiredJob); err != nil {
 					return err
 				}
 			}
@@ -295,6 +305,13 @@ func (r *SourceReconciler) ApplySourceCleanUpJob(ctx context.Context, source *v1
 			if err := r.Update(ctx, source); err != nil {
 				return err
 			}
+
+			desiredJob := spec.MakeSourceCleanUpJob(source)
+			// delete the cleanup job
+			if err := r.Delete(ctx, desiredJob); err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
