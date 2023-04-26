@@ -1,22 +1,23 @@
 apiVersion: compute.functionmesh.io/v1alpha1
 kind: Function
 metadata:
-  name: py-function-excla-generic-sample
+  name: node-function-avro-generic-sample
   namespace: default
 spec:
-  image: jiangpch/generic-runtime-python:v0.30.0
-  className: exclamation.ExclamationFunction
+  image: jiangpch/generic-runtime-node:v0.35.0
+  className: checkavro
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
   replicas: 1
-  logTopic: persistent://public/default/py-generic-excla-logs
   input:
-    topics:
-    - persistent://public/default/py-generic-excla-input
-    typeClassName: string
+    sourceSpecs:
+      "persistent://public/default/node-generic-avro-input":
+        schemaType: avro
+    typeClassName: checkavro.definitions
   output:
-    topic: persistent://public/default/py-generic-excla-output
-    typeClassName: string
+    topic: persistent://public/default/node-generic-avro-output
+    sinkSchemaType: avro
+    typeClassName: checkavro.definitions
   resources:
     requests:
       cpu: 500m
@@ -25,17 +26,14 @@ spec:
       cpu: 500m
       memory: 0.5G
   pulsar:
-    pulsarConfig: "test-py-pulsar"
+    pulsarConfig: "test-node-pulsar"
     tlsConfig:
       enabled: false
       allowInsecure: true
       hostnameVerification: true
-  python:
-    py: exclamation.py
-    pyLocation: function://public/default/py-exclamation
-  statefulConfig:
-    pulsar:
-      serviceUrl: bk://sn-platform-pulsar-bookie.default.svc.cluster.local:4181
+  node:
+    node: checkavro.js
+    nodeLocation: function://public/default/node-avro
   clusterName: test
   autoAck: true
   useGenericRuntime: true
@@ -43,7 +41,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: test-py-pulsar
+  name: test-node-pulsar
 data:
   webServiceURL: http://sn-platform-pulsar-broker.default.svc.cluster.local:8080
   brokerServiceURL: pulsar://sn-platform-pulsar-broker.default.svc.cluster.local:6650

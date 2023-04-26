@@ -30,6 +30,11 @@ case ${1} in
     kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/test-java-function --path /pulsar/examples/api-examples.jar --description "test java function"
     ;;
   py)
+    kubectl cp "${PULSAR_HOME}/.ci/examples/py-examples" "${NAMESPACE}/${CLUSTER}-pulsar-broker-0:/pulsar/"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/py-exclamation --path /pulsar/py-examples/exclamation.py --description "test python function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/py-zip --path /pulsar/py-examples/zip/httppy.zip --description "test python zip function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/py-json --path /pulsar/py-examples/checkjson.py --description "test python json function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/py-avro --path /pulsar/py-examples/checkavro.py --description "test python avro function"
     kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/test-py-function --path /pulsar/examples/python-examples/exclamation_function.py --description "test python function"
     ;;
   pyzip)
@@ -43,5 +48,12 @@ case ${1} in
   go)
     kubectl cp "${PULSAR_HOME}/.ci/examples/go-examples" "${NAMESPACE}/${CLUSTER}-pulsar-broker-0:/pulsar/"
     kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/test-go-function --path /pulsar/go-examples/exclamationFunc --description "test golang function"
+    ;;
+  node)
+    kubectl cp "${PULSAR_HOME}/.ci/examples/node-examples" "${NAMESPACE}/${CLUSTER}-pulsar-broker-0:/pulsar/"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/node-exclamation --path /pulsar/node-examples/exclamation.js --description "test node function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/node-zip --path /pulsar/node-examples/zip/http.zip --description "test node zip function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/node-json --path /pulsar/node-examples/checkjson.js --description "test node json function"
+    kubectl exec -n ${NAMESPACE} ${CLUSTER}-pulsar-broker-0 -- bin/pulsar-admin packages upload function://public/default/node-avro --path /pulsar/node-examples/checkavro.js --description "test node avro function"
     ;;
 esac

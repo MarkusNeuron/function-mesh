@@ -1,22 +1,23 @@
 apiVersion: compute.functionmesh.io/v1alpha1
 kind: Function
 metadata:
-  name: py-function-excla-generic-sample
+  name: py-function-json-generic-sample
   namespace: default
 spec:
-  image: jiangpch/generic-runtime-python:v0.30.0
-  className: exclamation.ExclamationFunction
+  image: jiangpch/generic-runtime-python:v0.31.0
+  className: checkjson
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
   replicas: 1
-  logTopic: persistent://public/default/py-generic-excla-logs
   input:
-    topics:
-    - persistent://public/default/py-generic-excla-input
-    typeClassName: string
+    sourceSpecs:
+      "persistent://public/default/py-generic-json-input":
+        schemaType: json
+    typeClassName: checkjson.Student
   output:
-    topic: persistent://public/default/py-generic-excla-output
-    typeClassName: string
+    topic: persistent://public/default/py-generic-json-output
+    sinkSchemaType: json
+    typeClassName: checkjson.Student
   resources:
     requests:
       cpu: 500m
@@ -31,11 +32,8 @@ spec:
       allowInsecure: true
       hostnameVerification: true
   python:
-    py: exclamation.py
-    pyLocation: function://public/default/py-exclamation
-  statefulConfig:
-    pulsar:
-      serviceUrl: bk://sn-platform-pulsar-bookie.default.svc.cluster.local:4181
+    py: checkjson.py
+    pyLocation: function://public/default/py-json
   clusterName: test
   autoAck: true
   useGenericRuntime: true

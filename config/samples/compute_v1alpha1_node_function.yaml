@@ -1,21 +1,21 @@
 apiVersion: compute.functionmesh.io/v1alpha1
 kind: Function
 metadata:
-  name: py-function-excla-generic-sample
+  name: node-function-excla-generic-sample
   namespace: default
 spec:
-  image: jiangpch/generic-runtime-python:v0.30.0
-  className: exclamation.ExclamationFunction
+  image: jiangpch/generic-runtime-node:v0.35.0
+  className: exclamation
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
   replicas: 1
-  logTopic: persistent://public/default/py-generic-excla-logs
+  logTopic: persistent://public/default/node-generic-excla-logs
   input:
     topics:
-    - persistent://public/default/py-generic-excla-input
+    - persistent://public/default/node-generic-excla-input
     typeClassName: string
   output:
-    topic: persistent://public/default/py-generic-excla-output
+    topic: persistent://public/default/node-generic-excla-output
     typeClassName: string
   resources:
     requests:
@@ -25,14 +25,14 @@ spec:
       cpu: 500m
       memory: 0.5G
   pulsar:
-    pulsarConfig: "test-py-pulsar"
+    pulsarConfig: "test-node-pulsar"
     tlsConfig:
       enabled: false
       allowInsecure: true
       hostnameVerification: true
-  python:
-    py: exclamation.py
-    pyLocation: function://public/default/py-exclamation
+  node:
+    node: exclamation.js
+    nodeLocation: function://public/default/node-exclamation
   statefulConfig:
     pulsar:
       serviceUrl: bk://sn-platform-pulsar-bookie.default.svc.cluster.local:4181
@@ -43,7 +43,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: test-py-pulsar
+  name: test-node-pulsar
 data:
   webServiceURL: http://sn-platform-pulsar-broker.default.svc.cluster.local:8080
   brokerServiceURL: pulsar://sn-platform-pulsar-broker.default.svc.cluster.local:6650
