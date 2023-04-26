@@ -4,7 +4,7 @@ metadata:
   name: py-function-excla-generic-sample
   namespace: default
 spec:
-  image: jiangpch/generic-runtime-python:v0.30.0
+  image: jiangpch/generic-runtime-python:v0.31.0
   className: exclamation.ExclamationFunction
   forwardSourceMessageProperty: true
   maxPendingAsyncRequests: 1000
